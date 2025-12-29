@@ -38,7 +38,7 @@ def main():
 
     args = parser.parse_args()
     
-    mvc = MiniVC(os.getenv('MINIVC_BASE_PATH', 'mvc_files'), os.getcwd())
+    mvc = MiniVC(os.getenv('MINIVC_BASE_PATH', 'mvc-files'), os.getcwd())
     # parse commands
     if args.command == "submit":
         description = args.description or "no description"

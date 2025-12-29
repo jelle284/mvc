@@ -36,7 +36,7 @@ class MiniVC:
         for i in range(1, submit_number+1):
             with open(os.path.join(project_path, "temp", f"sub{i}", ".mvc"), 'r') as f:
                 description = json.load(f)["version"]["description"]
-                changelog.append(description)
+                changelog.append(f"Submit {i}: {description}")
         return "\n".join(changelog)
         
     def __init__(self, base_path, workspace_path):
@@ -46,6 +46,7 @@ class MiniVC:
         self._load_workspace()
 
     def create(self, project_name: str):
+        if project_name == '': raise MVCError("Project must have a name.")
         self._new_workspace(project_name)
         project_path = os.path.join(self._base_path, self.workspace["workspace"]["project"])
         latest_version_path = os.path.join(project_path, "versions", "latest")
@@ -58,7 +59,11 @@ class MiniVC:
                         "files": {}}
                         }, f)
         with open(os.path.join(project_path, '.mvc'), 'w') as f:
-            json.dump({"project": {"submit_number": 0, "version_number": 0}}, f)
+            json.dump({"project": 
+                       {"submit_number": 0,
+                        "version_number": 0,
+                        "files": {}}
+                        }, f)
 
     def submit(self, files: List[str], description: str):
         project_path = self._get_project_from_ws()
@@ -88,6 +93,7 @@ class MiniVC:
             src_path = os.path.join(self._ws_path, file_name)
             dst_path = os.path.join(work_path, file_name)
             shutil.copy2(src_path, dst_path)
+            project_data["files"][file_name] = os.path.getmtime(src_path)
         with open(os.path.join(work_path, ".mvc"), 'w') as f:
             json.dump({"version": version_data}, f)
         project_data["submit_number"] = submit_number
@@ -237,3 +243,72 @@ class MiniVC:
                 version_data = json.load(f)
                 ret.append(f"Version {i}: {version_data['version']['description']}")
         return "\n".join(ret)
+    
+    def contents(self) -> str:
+        project_path = self._get_project_from_ws()
+        with open(os.path.join(project_path, '.mvc'), 'r') as f:
+            project_data = json.load(f)["project"]
+        submit_number = project_data["submit_number"]
+        if submit_number > 0:
+            work_path = os.path.join(project_path, "temp", f"sub{submit_number}")
+        else:
+            work_path = os.path.join(project_path, "versions", "latest")
+        with open(os.path.join(work_path, ".mvc"), 'r') as f:
+            version_data = json.load(f)["version"]
+        files = os.listdir(work_path)
+        files.remove(".mvc")
+        files += [k for k in version_data['files']]
+        return "\n".join(files)
+
+    def remove(self, files: List[str]):
+        project_path = self._get_project_from_ws()
+        with open(os.path.join(project_path, '.mvc'), 'r') as f:
+            project_data = json.load(f)["project"]
+        submit_number = project_data["submit_number"]
+        if submit_number > 0:
+            work_path = os.path.join(project_path, "temp", f"sub{submit_number}")
+        else:
+            work_path = os.path.join(project_path, "versions", "latest")
+        with open(os.path.join(work_path, ".mvc"), 'r') as f:
+            version_data = json.load(f)["version"]
+        work_files = os.listdir(work_path)
+        work_files.remove('.mvc')
+        if work_files is None:
+            work_files = []
+        for file in work_files:
+            version_data['files'][file] = version_data['id']
+        for file in files:
+            version_data['files'].pop(file, None)
+            project_data["files"].pop(file, None)
+            os.remove(os.path.join(self._ws_path, file))
+        submit_number += 1
+        version_data['id'] = f"sub{submit_number}"
+        version_data['description'] = f"removed {','.join(files)}"
+        work_path = os.path.join(project_path, "temp", f"sub{submit_number}")
+        os.makedirs(work_path, exist_ok=True)
+        with open(os.path.join(work_path, ".mvc"), 'w') as f:
+            json.dump({"version": version_data}, f)
+        project_data["submit_number"] = submit_number
+        with open(os.path.join(project_path, ".mvc"), 'w') as f:
+            json.dump({"project": project_data}, f)
+
+    def changes(self) -> str:
+        project_path = self._get_project_from_ws()
+        with open(os.path.join(project_path, '.mvc'), 'r') as f:
+            project_data = json.load(f)["project"]
+        workspace_files = os.listdir(self._ws_path)
+        workspace_files.remove('.mvc')
+        if workspace_files is None:
+            workspace_files = []
+        changed_files = []
+        for file in workspace_files:
+            fpath = os.path.join(self._ws_path, file)
+            stamp = os.path.getmtime(fpath)
+            file_is_new = file not in project_data["files"]
+            try:
+                stamp_is_different = project_data["files"][file] != stamp
+            except KeyError:
+                stamp_is_different = False
+            if file_is_new or stamp_is_different:
+                changed_files.append(file)
+        return "\n".join(changed_files)
