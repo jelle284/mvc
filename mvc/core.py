@@ -4,6 +4,8 @@ import json
 from typing import List
 from datetime import datetime
 
+from mvc.helpers import MVCProject, MVCVersion, MVCWorkspace
+
 class MVCError(Exception):
     def __init__(self, message):
         super().__init__(message)
@@ -292,7 +294,7 @@ class MiniVC:
         with open(os.path.join(project_path, ".mvc"), 'w') as f:
             json.dump({"project": project_data}, f)
 
-    def changes(self) -> str:
+    def changes(self) -> List[str]:
         project_path = self._get_project_from_ws()
         with open(os.path.join(project_path, '.mvc'), 'r') as f:
             project_data = json.load(f)["project"]
@@ -311,4 +313,4 @@ class MiniVC:
                 stamp_is_different = False
             if file_is_new or stamp_is_different:
                 changed_files.append(file)
-        return "\n".join(changed_files)
+        return changed_files
