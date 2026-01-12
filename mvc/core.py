@@ -1,11 +1,7 @@
 import os
 import shutil
-import json
 from typing import List
 from datetime import datetime
-import logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(filename="mvc.log", level=logging.INFO)
 
 from mvc.helpers import MVCProject, MVCVersion, MVCWorkspace
 
@@ -131,7 +127,7 @@ class MiniVC:
             project.files[file_name] = os.path.getmtime(src_path)
         project.history.append([
             f"**Submit:** {version.description}",
-            f"{", ".join(files)}",
+            f"{', '.join(files)}",
         ])
         version.save(os.path.join(version_path, ".mvc"))
         project.save(os.path.join(project_path, ".mvc"))
@@ -155,7 +151,7 @@ class MiniVC:
         os.makedirs(version_path, exist_ok=True)
         project.history.append([
             f"**Remove:** {version.description}",
-            f"{", ".join(files)}",
+            f"{', '.join(files)}",
         ])
         project.save(os.path.join(project_path, ".mvc"))
         version.save(os.path.join(version_path, ".mvc"))
