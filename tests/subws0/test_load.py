@@ -4,8 +4,9 @@ sys.path.append("./.")
 import os
 
 from mvc.core import MiniVC
-
-mvc = MiniVC("mvc-files", os.path.dirname(__file__))
+base_path = os.path.join(".", "mvc-files")
+user_path = os.path.dirname(__file__)
+mvc = MiniVC(base_path, user_path)
 
 mvc.load("test_prj", "ver1")
 print("status:")

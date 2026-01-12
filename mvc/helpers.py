@@ -23,9 +23,11 @@ class JSONBase:
 @dataclass
 class MVCProject(JSONBase):
     name: str
-    submit_no: int
-    version_no: int
+    submit_number: int
+    version_major: int
+    version_minor: int
     files: dict[str, str]
+    history: list[list[str]]
 
 @dataclass
 class MVCWorkspace(JSONBase):

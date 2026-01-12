@@ -14,7 +14,7 @@ shutil.rmtree("./mvc-files", ignore_errors=True)
 
 # remove workspace 0
 rmfiles(
-    files_to_delete = [".mvc", "changelog.txt", "f1.txt", "f2.txt"],
+    files_to_delete = [".mvc", "changelog.md", "f1.txt", "f2.txt"],
     subdir = "./tests/subws0"
 )
 
