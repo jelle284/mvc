@@ -21,21 +21,19 @@ class JSONBase:
 # ------------------------  Data classes -------------------------- #
 
 @dataclass
-class MVCProject(JSONBase):
+class Project(JSONBase):
     name: str
     submit_number: int
     version_major: int
     version_minor: int
     files: dict[str, str]
-    history: list[list[str]]
 
 @dataclass
-class MVCWorkspace(JSONBase):
+class Workspace(JSONBase):
     project: str
 
 @dataclass
-class MVCVersion(JSONBase):
+class Version(JSONBase):
     id: str
-    timestamp: str
-    description: str
+    description: list[str]
     files: dict[str, str]

@@ -9,23 +9,28 @@ def rmfiles(files_to_delete, subdir):
         except FileNotFoundError:
             pass
 
-# remove backend files
-shutil.rmtree("./mvc-files", ignore_errors=True)
+def main():
+    # remove backend files
+    shutil.rmtree("./mvc-files", ignore_errors=True)
 
-# remove workspace 0
-rmfiles(
-    files_to_delete = [".mvc", "changelog.md", "f1.txt", "f2.txt"],
-    subdir = "./tests/subws0"
-)
+    workspace_files = [".mvc", "changelog.md"] + [f"f{i}.txt" for i in range(10)]
+    # remove workspace 0
+    rmfiles(
+        files_to_delete = workspace_files,
+        subdir = "./tests/subws0"
+    )
 
-# remove workspace 1
-rmfiles(
-    files_to_delete = [".mvc", "f1.txt", "f2.txt"],
-    subdir = "./tests/subws1"
-)
+    # remove workspace 1
+    rmfiles(
+        files_to_delete = workspace_files,
+        subdir = "./tests/subws1"
+    )
 
-# remove helpers
-rmfiles(
-    files_to_delete = ["project.json", "version.json", "workspace.json"],
-    subdir = "./tests"
-)
+    # remove helpers
+    rmfiles(
+        files_to_delete = ["project.json", "version.json", "workspace.json"],
+        subdir = "./tests"
+    )
+
+if __name__ == '__main__':
+    main()
