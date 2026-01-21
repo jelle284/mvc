@@ -31,7 +31,7 @@ class TestMVC(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree("./mvc-files", ignore_errors=True)
-        for i in range(1,6):
+        for i in range(1,7):
             shutil.rmtree(f"tests/subws{i}", ignore_errors=True)
         print("teardown done")
 
@@ -47,15 +47,20 @@ class TestMVC(unittest.TestCase):
             print("  changes")
             self.assertListEqual(user_files, mvc.changes())
             print("  submit")
-            mvc.submit(["f1.txt"], "first text file")
+            mvc.submit(["f1.txt"], "a single file")
             self.assertIn("f1.txt", mvc.contents())
             print("  save")
             mvc.save("first content saved")
             print("  release")
             mvc.release("archive this milestone")
-            print("  submit")
-            mvc.submit(["f2.txt", "f3.txt"], "new content")
-            print("  changes")
+            print("  alter file")
+            with open(os.path.join("tests", "subws1", "f1.txt"), 'w') as fd:
+                fd.write("altered content")
+            self.assertIn("f1.txt", mvc.changes())
+            mvc.submit(["f1.txt"], "changed a file")
+            mvc.save("saved the changes")
+            print(  "submit")
+            mvc.submit(["f2.txt", "f3.txt"], "multiple files")
             self.assertEqual(len(mvc.changes()), 0)
             print("  Done!")
 
@@ -71,6 +76,9 @@ class TestMVC(unittest.TestCase):
             confirmation_dialog(recipe)
             mvc.load_finalize(recipe)
             self.assertIn("f1.txt", os.listdir(user_path))
+            with open(os.path.join("tests","subws2", "f1.txt"), 'r') as fd:
+                f1_content = fd.read()
+                self.assertEqual(f1_content, "altered content")
             status = mvc.status()
             print("  status:", status)
             print("  review")
@@ -85,7 +93,7 @@ class TestMVC(unittest.TestCase):
             print("  remove")
             mvc.remove(["f3.txt"], "i didn't like this part")
             self.assertNotIn("f3.txt", mvc.contents())
-            self.assertNotIn("f3.txt", os.listdir(user_path))
+            self.assertIn("f3.txt", mvc.changes())
             print("  save")
             mvc.save("reviewed ok")
             print("  Done!")
@@ -100,8 +108,8 @@ class TestMVC(unittest.TestCase):
             mvc.load_finalize(recipe)
             self.assertTrue(all(f in os.listdir(user_path) for f in ["f1.txt", "f2.txt", "changelog.md", ".mvc"]))
             mvc.remove(["f2.txt", "f1.txt"], "its out")
-            user_files = os.listdir(user_path)
-            self.assertFalse(any(f in user_files for f in ["f2.txt", "f1.txt"]))
+            changes = mvc.changes()
+            self.assertTrue(all(f in changes for f in ["f2.txt", "f1.txt"]))
             mvc.submit(["f4.txt", "f5.txt", "f6.txt"], "lots text file")
             print("  Done!")
 
@@ -125,6 +133,18 @@ class TestMVC(unittest.TestCase):
             print("from subws5")
             user_path = create_subws("subws5")
             mvc = MiniVC(BASE_PATH, user_path)
+            print("  load release 2")
+            mvc.load_finalize(mvc.load(PRJ_NAME, 2))
+            user_files = os.listdir(user_path)
+            expected_files = ["f4.txt", "f5.txt", "f6.txt", ".mvc", "changelog.md"]
+            self.assertTrue(all(f in user_files for f in expected_files))
+            self.assertFalse(any(f not in user_files for f in expected_files))
+            print("  Done!")
+
+        def subtest_6():
+            print("from subws6")
+            user_path = create_subws("subws6")
+            mvc = MiniVC(BASE_PATH, user_path)
             print("  load release 1")
             mvc.load_finalize(mvc.load(PRJ_NAME, 1))
             user_files = os.listdir(user_path)
@@ -138,6 +158,7 @@ class TestMVC(unittest.TestCase):
         subtest_3()
         subtest_4()
         subtest_5()
+        subtest_6()
 
 if __name__ == '__main__':
     unittest.main()

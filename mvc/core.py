@@ -117,7 +117,7 @@ class MiniVC:
             project.timestamps[file_name] = os.path.getmtime(src_path)
         version.description = [f"## {project.id}",
                                comment,
-                               f"### Submitted files:",
+                               f"Submitted files:",
                                *[f' + {file}' for file in files],]
         workspace.save(self.user_path)
         version.save(version_path)
@@ -135,13 +135,12 @@ class MiniVC:
         for file in files:
             version.include.pop(file, None)
             project.timestamps.pop(file, None)
-            os.remove(os.path.join(self.user_path, file))
         project.id.submit += 1
         version_path = os.path.join(project_path, project.id.sub_path)
         os.makedirs(version_path, exist_ok=True)
         version.description = [f"## {project.id}",
                                comment,
-                               f"### Removed files: ",
+                               f"Removed files: ",
                                *[f' - {file}' for file in files],]
         project.save(project_path)
         version.save(version_path)
@@ -159,8 +158,7 @@ class MiniVC:
         stable_version = Version.load(stable_path)
         stable_files = list_files_dir(stable_path)
         check_files = dev_files + [k for k in dev_version.include]
-        rm_files = [f for f in stable_version.include if f not in check_files]
-        for file in rm_files:
+        for file in check_files:
             stable_version.include.pop(file, None)
         rm_files = [f for f in stable_files if f not in check_files]
         for file in rm_files:
@@ -278,14 +276,20 @@ class MiniVC:
     def status(self) -> List[str]:
         workspace = self._get_workspace()
         project, project_path = self._get_project(workspace.project)
-        ret = []
-        version_id = project.id
-        for i in range(project.id.submit, 0, -1):
-            version_id.submit = i
-            version_path = os.path.join(project_path, version_id.sub_path)
-            version = Version.load(version_path)
-            ret += version.description
-        return ret
+        if project.id.submit > 0:
+            ret = []
+            for i in range(project.id.submit, 0, -1):
+                version_path = os.path.join(project_path, get_submit_path(i))
+                version = Version.load(version_path)
+                ret += version.description
+            return ret
+        elif project.id.release > 0 and project.id.save == 0: 
+            sub_path = get_release_path(project.id.release)
+        else:
+            sub_path = get_stable_path()
+        version_path = os.path.join(project_path, sub_path)
+        version = Version.load(version_path)
+        return version.description
     
     def contents(self) -> List[str]:
         workspace = self._get_workspace()
