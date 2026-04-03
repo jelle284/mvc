@@ -13,7 +13,7 @@ def main():
     # load
     parser_load = subparsers.add_parser("load", help="Load a project")
     parser_load.add_argument("project", help="Project name")
-    parser_load.add_argument("--version", default="latest", help="Version to load (default: latest)")
+    parser_load.add_argument("--version", default=-1, help="Version to load")
 
     # submit
     parser_submit = subparsers.add_parser("submit", help="Submit changes")
@@ -55,16 +55,20 @@ def main():
         mvc.create(args.project)
     
     elif args.command == 'list':
-        print(mvc.list())
+        print(mvc.list_projects())
 
     elif args.command == "load":
-        mvc.load(args.project, args.version)
+        recipe = mvc.load(args.project, args.version)
+        print("Loading files", ", ".join(recipe.files_to_add))
+        mvc.load_finalize(recipe)
 
     elif args.command == 'status':
         print(mvc.status())
 
     elif args.command == "review":
-        mvc.review()
+        recipe = mvc.review()
+        print("Reviewing files", ", ".join(recipe.files_to_add))
+        mvc.review_finalize(recipe)
     
 if __name__ == "__main__":
     try:
