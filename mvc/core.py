@@ -57,14 +57,14 @@ class MiniVC:
             project = Project.load(project_path)
             return project, project_path
         except FileNotFoundError:
-            raise MVCError("Invalid project name.")     
+            raise MVCError("Configured project does not exist.")
     
     def _get_workspace(self):
         try:
             workspace = Workspace.load(self.user_path)
             return workspace
         except FileNotFoundError:
-            return None
+            raise MVCError("Workspace not intialized.")
 
     def __init__(self, base_path, user_path):
         self.base_path = base_path
