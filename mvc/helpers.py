@@ -1,6 +1,7 @@
 import os
 import shutil
 import json
+from pathlib import Path
 from dataclasses import dataclass, asdict
 # ================================================================= #
 # ------------------------  Error classes -------------------------- #
@@ -12,13 +13,13 @@ class MVCError(Exception):
 # ---------------------------- Functions -------------------------- #
 
 def get_submit_path(submit_id: int) -> str:
-    return os.path.join("temp", f"sub{submit_id}")
+    return str(Path("temp") / f"sub{submit_id}")
 
 def get_stable_path() -> str:
-    return os.path.join("versions", "latest")
+    return str(Path("versions") / "latest")
 
 def get_release_path(release_id: int) -> str:
-    return os.path.join("versions", f"ver{release_id}")
+    return str(Path("versions") / f"ver{release_id}")
 
 def list_files_dir(dir: str):
     return [f for f in os.listdir(dir) if f not in (".mvc", "changelog.md")]
@@ -59,20 +60,20 @@ class FileOperation:
 class JSONBase:
     """Base class providing JSON persistence for dataclasses."""
 
-    def save(self, filedir: str):
-        filename = os.path.join(filedir, ".mvc")
+    def save(self, filepath: str):
         data = asdict(self)
-        with open(filename, 'w') as f:
+        filepath = Path(filepath) / ".mvc"
+        with open(filepath, 'w') as f:
             json.dump(data, f, indent=4)
 
     @classmethod
-    def load(cls, filedir: str):
+    def load(cls, filepath: str):
         def object_hook(d: dict):
             if all(field in d for field in FileID.__annotations__):
                 return FileID(**d)
             return d
-        filename = os.path.join(filedir, ".mvc")
-        with open(filename, 'r') as f:
+        filepath = Path(filepath) / ".mvc"
+        with open(filepath, 'r') as f:
             data = json.load(f, object_hook=object_hook)
         return cls(**data)
 

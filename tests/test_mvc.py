@@ -2,9 +2,10 @@ import unittest
 from mvc.core import MiniVC, FileOperation
 import os
 import shutil
+from pathlib import Path
 
 PRJ_NAME = "test_prj"
-BASE_PATH = os.path.join(".", "mvc-files")
+BASE_PATH = str(Path(".", "mvc-files"))
 
 def confirmation_dialog(recipe: FileOperation):
     if len(recipe.files_to_add) > 0:
@@ -13,14 +14,14 @@ def confirmation_dialog(recipe: FileOperation):
         print(f"    confirm removing files: {', '.join(file for file in recipe.files_to_remove)}")
 
 def create_subws(name: str):
-    user_path = os.path.join(os.path.dirname(__file__), name)
+    user_path = str(Path(os.path.dirname(__file__)) / name)
     os.makedirs(user_path, exist_ok=True)
     return user_path
 
 def create_subws_with_files(name: str, i_start: int, i_end: int):
     user_path = create_subws(name)
     for i in range(i_start, i_end + 1):
-        with open(os.path.join(user_path, f"f{i}.txt"), 'w') as fd:
+        with open(str(Path(user_path) / f"f{i}.txt"), 'w') as fd:
             fd.write(f"test file {i}")
     return user_path
 
@@ -42,7 +43,7 @@ class TestMVC(unittest.TestCase):
             user_files = os.listdir(user_path)
             mvc = MiniVC(BASE_PATH, user_path)
             mvc.create(PRJ_NAME)
-            project_path = os.path.join(BASE_PATH, PRJ_NAME)
+            project_path = Path(BASE_PATH) / PRJ_NAME
             self.assertTrue(os.path.exists(project_path))
             print("  changes")
             self.assertListEqual(user_files, mvc.changes())
@@ -54,7 +55,7 @@ class TestMVC(unittest.TestCase):
             print("  release")
             mvc.release("archive this milestone")
             print("  alter file")
-            with open(os.path.join("tests", "subws1", "f1.txt"), 'w') as fd:
+            with open(str(Path("tests", "subws1", "f1.txt")), 'w') as fd:
                 fd.write("altered content")
             self.assertIn("f1.txt", mvc.changes())
             mvc.submit(["f1.txt"], "changed a file")
@@ -76,7 +77,7 @@ class TestMVC(unittest.TestCase):
             confirmation_dialog(recipe)
             mvc.load_finalize(recipe)
             self.assertIn("f1.txt", os.listdir(user_path))
-            with open(os.path.join("tests","subws2", "f1.txt"), 'r') as fd:
+            with open(str(Path("tests", "subws2", "f1.txt")), 'r') as fd:
                 f1_content = fd.read()
                 self.assertEqual(f1_content, "altered content")
             status = mvc.status()
