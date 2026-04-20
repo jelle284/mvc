@@ -7,43 +7,52 @@ from datetime import datetime
 from mvc.helpers import MVCError, Version, Project, Workspace, FileOperation, FileID, get_submit_path, get_stable_path, get_release_path, list_files_dir
 
 class MiniVC:
+    def __init__(self, base_path: str, user_path: str, user_name: str):
+        self.base_path = Path(base_path)
+        if not self.base_path.exists():
+            raise MVCError("Invalid base path.")
+        self.user_path = Path(user_path)
+        if not self.user_path.exists():
+            raise MVCError("Invalid user path.")
+        self.user_name = user_name
+        
     def _execute(self, recipe: FileOperation):
         for file, path in recipe.files_to_add.items():
             file_path = Path(path) / file
             shutil.copy2(file_path, self.user_path)
         for file in recipe.files_to_remove:
-            file_path = Path(self.user_path) / file
+            file_path = self.user_path / file
             os.remove(file_path)
     
     def _get_history_markdown(self, project: Project) -> list[str]:
         md = []
-        project_path = Path(self.base_path) / project.name
-        if project.id.submit > 0:
+        project_path = self.base_path / project.name
+        if project.id.dev > 0:
             md.append(f"# development version")
-        for i in range(project.id.submit, 0, -1):
+        for i in range(project.id.dev, 0, -1):
             version_path = project_path / get_submit_path(i)
             version = Version.load(version_path)
             for line in version.description:
                 md.append(line)
         
-        if project.id.save > 0:
+        if project.id.minor > 0:
             md.append(f"# stable version")
         version_path = project_path / get_stable_path()
         version = Version.load(version_path)
         for line in version.description:
             md.append(line)
         
-        if project.id.release > 0:
+        if project.id.major > 0:
             md.append(f"# Release version")
-        for i in range(project.id.release, 0, -1):
+        for i in range(project.id.major, 0, -1):
             version_path = project_path / get_release_path(i)
             version = Version.load(version_path)
             for line in version.description:
                 md.append(line)
         return md
     
-    def _write_markdown(self, dst_path: str, md: List[str]):
-        filename = Path(dst_path) / "changelog.md"
+    def _write_markdown(self, md: List[str]):
+        filename = self.user_path / "changelog.md"
         with open(filename, 'w') as fd:
             for line in md:
                 fd.write(line + "\n")
@@ -51,9 +60,9 @@ class MiniVC:
     def _current_timestamp(self) -> str:
         return datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-    def _get_project(self, project_name):
+    def _get_project(self, project_name: str):
         try:
-            project_path = Path(self.base_path) / project_name
+            project_path = self.base_path / project_name
             project = Project.load(project_path)
             return project, project_path
         except FileNotFoundError:
@@ -65,21 +74,28 @@ class MiniVC:
             return workspace
         except FileNotFoundError:
             raise MVCError("Workspace not intialized.")
-
-    def __init__(self, base_path, user_path):
-        self.base_path = base_path
-        self.user_path = user_path
-        if not os.path.exists(base_path):
-            raise MVCError("Invalid base path.")
-
+        
+    def _build_files_to_add(self, version_path: Path, project_path: Path, include_condition=lambda fid: True) -> dict[str, Path]:
+        files_to_add = {}
+        version = Version.load(version_path)
+        version_files = list_files_dir(version_path)
+        for file in version_files:
+            files_to_add[file] = version_path
+        for file, file_id in version.include.items():
+            if include_condition(file_id):
+                file_path = project_path / file_id.sub_path
+                files_to_add[file] = file_path
+        return files_to_add
+    
     def create(self, name: str):
         if name == '': raise MVCError("Project must have a name.")
         id = FileID(0,0,0)
         project = Project(
             name,
             id,
+            {},
             {})
-        project_path = Path(self.base_path) / name
+        project_path = self.base_path / name
         try:
             os.makedirs(project_path)
         except OSError:
@@ -100,6 +116,8 @@ class MiniVC:
     def submit(self, files: List[str], comment: str = ""):
         workspace = self._get_workspace()
         project, project_path = self._get_project(workspace.project)
+        if any(file in project.claims for file in files):
+            raise MVCError("One or more files have been claimed by other user")
         version_path = project_path / project.id.sub_path
         version = Version.load(version_path)
         work_files: list[str] = os.listdir(version_path)
@@ -108,11 +126,11 @@ class MiniVC:
             version.include[file] = FileID.copy(project.id)
         for file in files:
             version.include.pop(file, None)
-        project.id.submit += 1
+        project.id.dev += 1
         version_path = project_path / project.id.sub_path
         os.makedirs(version_path, exist_ok=True)
         for file_name in files:
-            src_path = Path(self.user_path) / file_name
+            src_path = self.user_path / file_name
             dst_path = version_path / file_name
             shutil.copy2(src_path, dst_path)
             project.timestamps[file_name] = os.path.getmtime(src_path)
@@ -120,7 +138,6 @@ class MiniVC:
                                comment,
                                f"Submitted files:",
                                *[f' + {file}' for file in files],]
-        workspace.save(self.user_path)
         version.save(version_path)
         project.save(project_path)
 
@@ -136,7 +153,7 @@ class MiniVC:
         for file in files:
             version.include.pop(file, None)
             project.timestamps.pop(file, None)
-        project.id.submit += 1
+        project.id.dev += 1
         version_path = project_path / project.id.sub_path
         os.makedirs(version_path, exist_ok=True)
         version.description = [f"## {project.id}",
@@ -146,12 +163,12 @@ class MiniVC:
         project.save(project_path)
         version.save(version_path)
         
-    def save(self, comment: str = ""):
+    def accept(self, comment: str = ""):
         workspace = self._get_workspace()
         project, project_path = self._get_project(workspace.project)
-        if project.id.submit == 0:
+        if project.id.dev == 0:
             raise MVCError("No files submitted")
-        submits_to_collect = project.id.submit
+        submits_to_collect = project.id.dev
         dev_path = project_path / get_submit_path(submits_to_collect)
         dev_version = Version.load(dev_path)
         dev_files = list_files_dir(dev_path)
@@ -169,12 +186,12 @@ class MiniVC:
             shutil.copy2(src_path, stable_path)
         for file, file_id in dev_version.include.items():
             src_path = project_path / file_id.sub_path / file
-            if file_id.submit > 0:
+            if file_id.dev > 0:
                 shutil.copy2(src_path, stable_path)
-            elif file_id.save == 0 and file_id.release > 0:
+            elif file_id.minor == 0 and file_id.major > 0:
                 stable_version.include[file] = file_id
-        project.id.save += 1
-        project.id.submit = 0
+        project.id.minor += 1
+        project.id.dev = 0
         sub_description = [f"## {project.id}",
                            comment,]
         for i in range(submits_to_collect, 0, -1):
@@ -191,12 +208,14 @@ class MiniVC:
     def release(self, comment: str = ""):
         workspace = self._get_workspace()
         project, project_path = self._get_project(workspace.project)
-        if project.id.submit > 0:
+        if project.id.dev > 0:
             raise MVCError("Unsaved submits.")
+        if project.id.minor == 0:
+            raise MVCError("No new files to release.")
         version_path = project_path / project.id.sub_path
         version = Version.load(version_path)
-        project.id.release += 1
-        project.id.save = 0
+        project.id.major += 1
+        project.id.minor = 0
         description = [f"## {project.id}",
                        comment,]
         version.description = description + version.description
@@ -218,60 +237,58 @@ class MiniVC:
             project.id = FileID(release, 0, 0)
             version_path = project_path / get_release_path(release)
         else:
-            project.id.submit = 0
+            project.id.dev = 0
             version_path = project_path / project.id.sub_path
-        if not os.path.exists(version_path):
+        if not version_path.exists():
             raise MVCError("Invalid version")
-        version = Version.load(version_path)
-        version_files = list_files_dir(version_path)
-        files_to_add = {}
-        for file in version_files:
-            files_to_add[file] = version_path
-        for file, file_id in version.include.items():
-            if file_id.release > 0:
-                include_path = project_path / file_id.sub_path
-                files_to_add[file] = include_path
         return FileOperation(
             project_name,
             self._get_history_markdown(project),
-            files_to_add,
+            self._build_files_to_add(version_path, project_path, lambda fid: fid.release > 0),
             [])
     
     def load_finalize(self, recipe: FileOperation):
         self._execute(recipe)
-        self._write_markdown(self.user_path, recipe.md)
+        self._write_markdown(recipe.md)
         Workspace(recipe.project_name).save(self.user_path)
 
     def review(self) -> FileOperation:
         workspace = self._get_workspace()
         project, project_path = self._get_project(workspace.project)
-        if project.id.submit == 0:
+        if project.id.dev == 0:
             raise MVCError("No files submitted")
-        dev_path = project_path / get_submit_path(project.id.submit)
-        dev = Version.load(dev_path)
-        dev_files = list_files_dir(dev_path)
-        files_to_add = {}
-        for file in dev_files:
-            files_to_add[file] = dev_path
-        for file, file_id in dev.include.items():
-            file_path = project_path / file_id.sub_path
-            files_to_add[file] = file_path
+        dev_path = project_path / get_submit_path(project.id.dev)
         return FileOperation(
             project.name,
             self._get_history_markdown(project),
-            files_to_add,
+            self._build_files_to_add(dev_path, project_path),
             [])
     
     def review_finalize(self, recipe: FileOperation):
         self._execute(recipe)
-        self._write_markdown(self.user_path, recipe.md)
+        self._write_markdown(recipe.md)
+
+    def restore(self, submit_number: int):
+        workspace = self._get_workspace()
+        project, project_path = self._get_project(workspace.project)
+        if project.id.dev < submit_number:
+            raise MVCError("Invalid argument!")
+        version_path = project_path / get_submit_path(submit_number)
+        return FileOperation(
+            project.name,
+            [],
+            self._build_files_to_add(version_path, project_path),
+            [])
+    
+    def restore_finalize(self, recipe: FileOperation):
+        self._execute(recipe)
 
     def list_projects(self) -> dict[str, str]:
         projects_paths = os.listdir(self.base_path)
         ret = {}
         for path in projects_paths:
             try:
-                project = Project.load(Path(self.base_path) / path)
+                project = Project.load(self.base_path / path)
                 ret[project.name] = str(project.id)
             except FileNotFoundError: pass
         return ret
@@ -279,15 +296,16 @@ class MiniVC:
     def status(self) -> List[str]:
         workspace = self._get_workspace()
         project, project_path = self._get_project(workspace.project)
-        if project.id.submit > 0:
+        if project.id.dev > 0:
             ret = []
-            for i in range(project.id.submit, 0, -1):
+            for i in range(project.id.dev, 0, -1):
                 version_path = project_path / get_submit_path(i)
                 version = Version.load(version_path)
                 ret += version.description
+                ret.append("")
             return ret
-        elif project.id.release > 0 and project.id.save == 0: 
-            sub_path = get_release_path(project.id.release)
+        elif project.id.major > 0 and project.id.minor == 0: 
+            sub_path = get_release_path(project.id.major)
         else:
             sub_path = get_stable_path()
         version_path = project_path / sub_path
@@ -308,7 +326,7 @@ class MiniVC:
         workspace_files = list_files_dir(self.user_path)
         changed_files = []
         for file in workspace_files:
-            fpath = Path(self.user_path) / file
+            fpath = self.user_path / file
             stamp = os.path.getmtime(fpath)
             file_is_new = file not in project.timestamps
             try:
@@ -318,3 +336,29 @@ class MiniVC:
             if file_is_new or stamp_is_different:
                 changed_files.append(file)
         return changed_files
+    
+    def claim(self, files: List[str]) -> None:
+        workspace = self._get_workspace()
+        project, project_path = self._get_project(workspace.project)
+        contents = self.contents()
+        for file in files:
+            if file not in contents: 
+                raise MVCError("File is not contained in the project.")
+            project.claims[file] = self.user_name
+        project.save(project_path)
+    
+    def unclaim(self, files: List[str], force=False) -> None:
+        workspace = self._get_workspace()
+        project, project_path = self._get_project(workspace.project)
+        for file in files:
+            if file in project.claims:
+                user_owns_file = project.claims[file] == self.user_name
+                if user_owns_file or force:
+                    project.claims.pop(file, None)
+                else: raise MVCError("File was claimed by another user")
+        project.save(project_path)
+    
+    def get_claims(self) -> dict[str,str]:
+        workspace = self._get_workspace()
+        project, _ = self._get_project(workspace.project)
+        return project.claims

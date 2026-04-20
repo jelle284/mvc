@@ -13,13 +13,13 @@ class MVCError(Exception):
 # ---------------------------- Functions -------------------------- #
 
 def get_submit_path(submit_id: int) -> str:
-    return str(Path("temp") / f"sub{submit_id}")
+    return Path("temp") / f"sub{submit_id}"
 
 def get_stable_path() -> str:
-    return str(Path("versions") / "latest")
+    return Path("versions") / "latest"
 
 def get_release_path(release_id: int) -> str:
-    return str(Path("versions") / f"ver{release_id}")
+    return Path("versions") / f"ver{release_id}"
 
 def list_files_dir(dir: str):
     return [f for f in os.listdir(dir) if f not in (".mvc", "changelog.md")]
@@ -28,19 +28,19 @@ def list_files_dir(dir: str):
 # ------------------------  Data classes -------------------------- #
 @dataclass
 class FileID:
-    release: int
-    save: int
-    submit: int
+    major: int
+    minor: int
+    dev: int
     def __str__(self):
-        return f"v{self.release}.{self.save}.{self.submit}"
+        return f"v{self.major}.{self.minor}.{self.dev}"
     @property
     def sub_path(self):
-        if self.submit > 0:
-            subpath = get_submit_path(self.submit)
-        elif self.save > 0:
+        if self.dev > 0:
+            subpath = get_submit_path(self.dev)
+        elif self.minor > 0:
             subpath = get_stable_path()
-        elif self.release > 0:
-            subpath = get_release_path(self.release)
+        elif self.major > 0:
+            subpath = get_release_path(self.major)
         else:
             subpath = get_stable_path()
         return subpath
@@ -82,6 +82,7 @@ class Project(JSONBase):
     name: str
     id: FileID
     timestamps: dict[str, str]
+    claims: dict[str, str]
 
 @dataclass
 class Workspace(JSONBase):
