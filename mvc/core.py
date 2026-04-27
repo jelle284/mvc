@@ -273,7 +273,8 @@ class MiniVC:
         project, project_path = self._get_project(workspace.project)
         if project.id.dev < submit_number:
             raise MVCError("Invalid argument!")
-        version_path = project_path / get_submit_path(submit_number)
+        project.id.dev = submit_number
+        version_path = project_path / project.id.sub_path
         return FileOperation(
             project.name,
             [],
