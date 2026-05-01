@@ -1,8 +1,8 @@
 import os
-import shutil
 import json
 from pathlib import Path
 from dataclasses import dataclass, asdict
+
 # ================================================================= #
 # ------------------------  Error classes -------------------------- #
 class MVCError(Exception):
@@ -54,6 +54,19 @@ class FileOperation:
     md: list[str]
     files_to_add: dict[str,str]
     files_to_remove: list[str]
+    def check_dir(self, user_dir: str):
+        user_files = os.listdir(user_dir)
+        check_files = []
+        for file in user_files:
+            file_path = Path(user_dir) / file
+            if file in self.files_to_add:
+                file_stamp = os.path.getmtime(file_path)
+                added_file_path = Path(self.files_to_add[file]) / file
+                added_file_stamp = os.path.getmtime(added_file_path)
+                if file_stamp != added_file_stamp:
+                    check_files.append(file)
+        return check_files
+    
 # ================================================================= #
 # ------------------ Persistent Data classes ---------------------- #
 

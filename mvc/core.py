@@ -268,18 +268,29 @@ class MiniVC:
         self._execute(recipe)
         self._write_markdown(recipe.md)
 
-    def restore(self, submit_number: int):
+    def restore(self, file_id: FileID):
         workspace = self._get_workspace()
         project, project_path = self._get_project(workspace.project)
-        if project.id.dev < submit_number:
+        if (project.id.dev < file_id.dev or
+            project.id.minor < file_id.minor or
+            project.id.major < file_id.major):
             raise MVCError("Invalid argument!")
-        project.id.dev = submit_number
-        version_path = project_path / project.id.sub_path
+        version_path = project_path / file_id.sub_path
         return FileOperation(
             project.name,
             [],
             self._build_files_to_add(version_path, project_path),
             [])
+    
+    def restore_available(self) -> list[FileID]:
+        workspace = self._get_workspace()
+        project, _ = self._get_project(workspace.project)
+        ret = []
+        for i in range(project.id.dev, 0, -1):
+            ret.append(FileID(project.id.major, project.id.minor, i))
+        for i in range(project.id.major, 0, -1):
+            ret.append(FileID(i, 0, 0))
+        return ret
     
     def restore_finalize(self, recipe: FileOperation):
         self._execute(recipe)
@@ -323,19 +334,22 @@ class MiniVC:
 
     def changes(self) -> List[str]:
         workspace = self._get_workspace()
-        project, _ = self._get_project(workspace.project)
+        project, project_path = self._get_project(workspace.project)
         workspace_files = list_files_dir(self.user_path)
+        version_path = project_path / project.id.sub_path
+        version_files = self._build_files_to_add(version_path, project_path)
         changed_files = []
         for file in workspace_files:
             fpath = self.user_path / file
             stamp = os.path.getmtime(fpath)
-            file_is_new = file not in project.timestamps
-            try:
-                stamp_is_different = project.timestamps[file] != stamp
-            except KeyError:
-                stamp_is_different = False
-            if file_is_new or stamp_is_different:
+            file_is_new = file not in version_files
+            if file_is_new:
                 changed_files.append(file)
+            else:
+                version_file_path = version_files[file] / file
+                version_file_stamp = os.path.getmtime(version_file_path)
+                if version_file_stamp != stamp:
+                    changed_files.append(file)
         return changed_files
     
     def claim(self, files: List[str]) -> None:
