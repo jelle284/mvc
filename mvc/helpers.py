@@ -94,7 +94,6 @@ class JSONBase:
 class Project(JSONBase):
     name: str
     id: FileID
-    timestamps: dict[str, str]
     claims: dict[str, str]
 
 @dataclass
