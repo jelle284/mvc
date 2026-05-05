@@ -60,9 +60,30 @@ class TestMVC(unittest.TestCase):
 
     def test_remove(self):
         print("test remove")
+        user_path = create_subws_with_files("subws1", 1, 3)
+        mvc = MiniVC(BASE_PATH, user_path, "user1")
+        mvc.create(PRJ_NAME)
+        self.assertRaises(MVCError, mvc.remove, [])
+        mvc.submit(["f1.txt", "f2.txt", "f3.txt"])
+        mvc.remove(["f2.txt"])
+        project = Project.load(BASE_PATH / PRJ_NAME)
+        self.assertEqual(project.id.dev, 2)
+        version = Version.load(BASE_PATH / PRJ_NAME / project.id.sub_path)
+        self.assertNotIn("f2.txt", version.include)
 
     def test_accept(self):
         print("test accept")
+        user_path = create_subws_with_files("subws1", 1, 3)
+        mvc = MiniVC(BASE_PATH, user_path, "user1")
+        mvc.create(PRJ_NAME)
+        self.assertRaises(MVCError, mvc.accept)
+        mvc.submit(["f1.txt", "f2.txt", "f3.txt"])
+        mvc.accept()
+        expected_path = BASE_PATH / PRJ_NAME / "versions" / "latest"
+        self.assertTrue(expected_path.exists())
+        expected_files = ["f1.txt", "f2.txt", "f3.txt"]
+        version_files = list_files_dir(expected_path)
+        self.assertTrue(all(f in version_files for f in expected_files))
 
     def test_changes(self):
         print("test changes")
@@ -71,14 +92,18 @@ class TestMVC(unittest.TestCase):
 
         mvc.create(PRJ_NAME)
         user_files = list_files_dir(user_path)
-        self.assertListEqual(user_files, mvc.changes())
+        new_files, changed_files = mvc.changes()
+        self.assertListEqual(user_files, new_files)
         mvc.submit(["f1.txt", "f2.txt"])
-        self.assertListEqual(["f3.txt"], mvc.changes())
+        new_files, changed_files = mvc.changes()
+        self.assertListEqual(["f3.txt"], new_files)
         with open(Path("tests", "subws1", "f1.txt"), 'w') as fd:
             fd.write("altered content")
-        self.assertIn("f1.txt", mvc.changes())
-        mvc.submit(["f1.txt"], "changed a file")
-        mvc.accept("accepted the changes")
+        new_files, changed_files = mvc.changes()
+        self.assertIn("f1.txt", changed_files)
+        mvc.submit(["f1.txt"])
+        new_files, changed_files = mvc.changes(FileID(0,0,1))
+        self.assertIn("f1.txt", changed_files)
     
     def test_claims(self):
         print("test claims")
@@ -95,11 +120,7 @@ class TestMVC(unittest.TestCase):
             user_path = create_subws("subws2")
             mvc = MiniVC(BASE_PATH, user_path, "user2")
             mvc.load(PRJ_NAME)
-            mvc.collect_finalize(
-                mvc.collect(
-                    mvc.collect_available()[0]
-                )
-            )
+            mvc.collect(mvc.available()[0])
             user_files = list_files_dir(user_path)
             self.assertRaises(MVCError, mvc.submit, user_files)
             mvc.unclaim(user_files[:1], force=True)
@@ -123,7 +144,7 @@ class TestMVC(unittest.TestCase):
             with open(Path("tests", "subws1", "f1.txt"), 'w') as fd:
                 fd.write("altered content")
             mvc.submit(["f1.txt"], "changed the first file")
-            available = mvc.collect_available()
+            available = mvc.available()
             self.assertEqual(available[0], FileID(1,1,2))
             self.assertEqual(available[1], FileID(1,1,1))
             self.assertEqual(available[2], FileID(1,1,0))
@@ -133,11 +154,7 @@ class TestMVC(unittest.TestCase):
             user_path = create_subws("subws2")
             mvc = MiniVC(BASE_PATH, user_path, "user2")
             mvc.load(PRJ_NAME)
-            mvc.collect_finalize(
-                mvc.collect(
-                    mvc.collect_available()[0]
-                )
-            )
+            mvc.collect(mvc.available()[0])
             user_files = list_files_dir(user_path)
             expected_files = ["f1.txt", "f2.txt", "f3.txt"]
             self.assertTrue(all(f in user_files for f in expected_files))
@@ -150,11 +167,7 @@ class TestMVC(unittest.TestCase):
             user_path = create_subws("subws2")
             mvc = MiniVC(BASE_PATH, user_path, "user2")
             mvc.load(PRJ_NAME)
-            mvc.collect_finalize(
-                mvc.collect(
-                    mvc.collect_available()[1]
-                )
-            )
+            mvc.collect(mvc.available()[1])
             user_files = list_files_dir(user_path)
             expected_files = ["f1.txt", "f2.txt", "f3.txt"]
             self.assertTrue(all(f in user_files for f in expected_files))
@@ -167,11 +180,7 @@ class TestMVC(unittest.TestCase):
             user_path = create_subws("subws4")
             mvc = MiniVC(BASE_PATH, user_path, "user4")
             mvc.load(PRJ_NAME)
-            mvc.collect_finalize(
-                mvc.collect(
-                    mvc.collect_available()[2]
-                )
-            )
+            mvc.collect(mvc.available()[2])
             user_files = list_files_dir(user_path)
             expected_files = ["f1.txt", "f2.txt"]
             self.assertTrue(all(f in user_files for f in expected_files))
@@ -181,11 +190,7 @@ class TestMVC(unittest.TestCase):
             user_path = create_subws("subws5")
             mvc = MiniVC(BASE_PATH, user_path, "user5")
             mvc.load(PRJ_NAME)
-            mvc.collect_finalize(
-                mvc.collect(
-                    mvc.collect_available()[3]
-                )
-            )
+            mvc.collect(mvc.available()[3])
             user_files = list_files_dir(user_path)
             expected_files = ["f1.txt"]
             self.assertTrue(all(f in user_files for f in expected_files))
