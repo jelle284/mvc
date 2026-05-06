@@ -79,7 +79,7 @@ def main():
             print(f"Project '{args.project}' created successfully")
 
         elif args.command == "load":
-            recipe = mvc.load(args.project)
+            mvc.load(args.project)
             print(f"Project loaded successfully")
 
         elif args.command == "submit":
@@ -98,7 +98,6 @@ def main():
             mvc.release(args.description or "")
             print("Project released successfully")
 
-        
         elif args.command == 'list':
             projects = mvc.list_projects()
             for name, version in projects.items():
@@ -149,14 +148,6 @@ def main():
                     print("*", file)
             if not changed_files and not new_files:
                 print("No changes detected")
-        
-        elif args.command == "contents":
-            contents = mvc.contents()
-            if contents:
-                for file in contents:
-                    print(file)
-            else:
-                print("Project is empty")
         
         elif args.command == "get_claims":
             claims = mvc.get_claims()

@@ -47,6 +47,7 @@ class TestMVC(unittest.TestCase):
         mvc = MiniVC(BASE_PATH, user_path, "user1")
         mvc.create(PRJ_NAME)
         self.assertRaises(MVCError, mvc.submit, [])
+        self.assertRaises(MVCError, mvc.submit, ["file_which_does_not_exist.txt"])
         mvc.submit(["f1.txt"])
         expected_path = BASE_PATH / PRJ_NAME / "temp" / "sub1"
         self.assertTrue(expected_path.exists())
@@ -64,6 +65,7 @@ class TestMVC(unittest.TestCase):
         mvc = MiniVC(BASE_PATH, user_path, "user1")
         mvc.create(PRJ_NAME)
         self.assertRaises(MVCError, mvc.remove, [])
+        self.assertRaises(MVCError, mvc.remove, ["file_which_does_not_exist.txt"])
         mvc.submit(["f1.txt", "f2.txt", "f3.txt"])
         mvc.remove(["f2.txt"])
         project = Project.load(BASE_PATH / PRJ_NAME)

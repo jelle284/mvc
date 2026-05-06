@@ -3,7 +3,7 @@ from pathlib import Path
 import shutil
 from datetime import datetime
 
-from mvc.helpers import MVCError, Version, Project, Workspace, FileOperation, FileID, get_submit_path, get_stable_path, get_release_path, list_files_dir
+from mvc.helpers import MVCError, Version, Project, Workspace, FileID, get_submit_path, get_stable_path, get_release_path, list_files_dir
 
 class MiniVC:
     def __init__(self, base_path: str, user_path: str, user_name: str):
@@ -112,6 +112,9 @@ class MiniVC:
     def submit(self, files: list[str], comment: str = ""):
         if not files:
             raise MVCError("Files is empty.")
+        user_files = list_files_dir(self.user_path)
+        if any(file not in user_files for file in files):
+            raise MVCError("File does not exist in workspace.")
         workspace = self._get_workspace()
         project, project_path = self._get_project(workspace.project)
         if any(file in project.claims for file in files):
@@ -131,10 +134,10 @@ class MiniVC:
             dst_path = version_path / file_name
             shutil.copy2(src_path, dst_path)
 
-        version.description = [f"## {project.id}",
-                               comment,
-                               f"Submitted files:",
-                               *[f' + {file}' for file in files],]
+        version.description = [f"## {project.id}"]
+        if comment: version.description.append(comment)
+        version.description +=  [f"Submitted files:",
+                               *[f' + {file}' for file in files]]
         version.save(version_path)
         project.save(project_path)
 
@@ -143,6 +146,9 @@ class MiniVC:
             raise MVCError("Files is empty.")
         workspace = self._get_workspace()
         project, project_path = self._get_project(workspace.project)
+        project_files = self._file_walker(project, project.id)
+        if any(file not in project_files for file in files):
+            raise MVCError("File does not exist in project.")
         if any(file in project.claims for file in files):
             raise MVCError("One or more files have been claimed by other user")
         version_path = project_path / project.id.sub_path
@@ -155,10 +161,10 @@ class MiniVC:
         project.id.dev += 1
         version_path = project_path / project.id.sub_path
         os.makedirs(version_path, exist_ok=True)
-        version.description = [f"## {project.id}",
-                               comment,
-                               f"Removed files: ",
-                               *[f' - {file}' for file in files],]
+        version.description = [f"## {project.id}"]
+        if comment: version.description.append(comment)
+        version.description +=  [f"Submitted files:",
+                               *[f' - {file}' for file in files]]
         project.save(project_path)
         version.save(version_path)
         
@@ -197,6 +203,7 @@ class MiniVC:
             sub_version_path = project_path / get_submit_path(i)
             sub_version = Version.load(sub_version_path)
             sub_description += sub_version.description
+            sub_description.append("")
         stable_version.description = sub_description + stable_version.description
         stable_version.save(stable_path)
         temp_path = project_path / "temp"

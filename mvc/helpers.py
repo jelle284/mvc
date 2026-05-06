@@ -47,13 +47,6 @@ class FileID:
     @classmethod
     def copy(cls, other):
         return cls(**other.__dict__)
-
-@dataclass
-class FileOperation:
-    project_name: str
-    md: list[str]
-    files_to_add: dict[str,str]
-    files_to_remove: list[str]
     
 # ================================================================= #
 # ------------------ Persistent Data classes ---------------------- #
