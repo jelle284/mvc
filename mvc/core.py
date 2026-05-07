@@ -15,7 +15,7 @@ class MiniVC:
             raise MVCError("Invalid user path.")
         self.user_name = user_name
         
-    def _get_history_markdown(self, project: Project) -> list[str]:
+    def _write_changelog(self, project: Project):
         md = []
         project_path = self.base_path / project.name
         if project.id.dev > 0:
@@ -40,9 +40,7 @@ class MiniVC:
             version = Version.load(version_path)
             for line in version.description:
                 md.append(line)
-        return md
-    
-    def _write_markdown(self, md: list[str]):
+
         filename = self.user_path / "changelog.md"
         with open(filename, 'w') as fd:
             for line in md:
@@ -117,7 +115,7 @@ class MiniVC:
             raise MVCError("File does not exist in workspace.")
         workspace = self._get_workspace()
         project, project_path = self._get_project(workspace.project)
-        if any(file in project.claims for file in files):
+        if any(file in project.claims for file in files if project.claims[file] != self.user_name):
             raise MVCError("One or more files have been claimed by other user")
         version_path = project_path / project.id.sub_path
         version = Version.load(version_path)
@@ -149,7 +147,7 @@ class MiniVC:
         project_files = self._file_walker(project, project.id)
         if any(file not in project_files for file in files):
             raise MVCError("File does not exist in project.")
-        if any(file in project.claims for file in files):
+        if any(file in project.claims for file in files if project.claims[file] != self.user_name):
             raise MVCError("One or more files have been claimed by other user")
         version_path = project_path / project.id.sub_path
         version = Version.load(version_path)
@@ -248,6 +246,7 @@ class MiniVC:
         for file in files_to_add:
             file_path = Path(files_to_add[file]) / file
             shutil.copy2(file_path, self.user_path)
+        self._write_changelog(project)
     
     def available(self) -> list[FileID]:
         workspace = self._get_workspace()
