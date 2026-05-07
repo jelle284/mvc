@@ -115,8 +115,10 @@ class MiniVC:
             raise MVCError("File does not exist in workspace.")
         workspace = self._get_workspace()
         project, project_path = self._get_project(workspace.project)
-        if any(file in project.claims for file in files if project.claims[file] != self.user_name):
-            raise MVCError("One or more files have been claimed by other user")
+        for file in files:
+            if file in project.claims:
+                if project.claims[file] != self.user_name:
+                    raise MVCError("One or more files have been claimed by other user")
         version_path = project_path / project.id.sub_path
         version = Version.load(version_path)
         work_files = list_files_dir(version_path)
@@ -147,8 +149,10 @@ class MiniVC:
         project_files = self._file_walker(project, project.id)
         if any(file not in project_files for file in files):
             raise MVCError("File does not exist in project.")
-        if any(file in project.claims for file in files if project.claims[file] != self.user_name):
-            raise MVCError("One or more files have been claimed by other user")
+        for file in files:
+            if file in project.claims:
+                if project.claims[file] != self.user_name:
+                    raise MVCError("One or more files have been claimed by other user")
         version_path = project_path / project.id.sub_path
         version = Version.load(version_path)
         work_files = list_files_dir(version_path)
