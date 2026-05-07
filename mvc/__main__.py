@@ -23,12 +23,12 @@ def main():
     parser_collect = subparsers.add_parser("collect", help="Collect files from the project")
     
     # submit
-    parser_submit = subparsers.add_parser("submit", help="Submit changes")
+    parser_submit = subparsers.add_parser("submit", help="Submit files to the project")
     parser_submit.add_argument("files", nargs='+', help="Files to submit")
     parser_submit.add_argument("--description", "-d", help="Description for this submit")
 
     # remove
-    parser_remove = subparsers.add_parser("remove", help="Remove files from submission")
+    parser_remove = subparsers.add_parser("remove", help="Remove files from the project")
     parser_remove.add_argument("files", nargs='+', help="Files to remove")
     parser_remove.add_argument("--description", "-d", help="Description for this removal")
 
@@ -55,9 +55,6 @@ def main():
     # changes
     parser_changes = subparsers.add_parser("changes", help="Get list of changed files")
 
-    # contents
-    parser_contents = subparsers.add_parser("contents", help="Get project contents")
-
     # list
     parser_list = subparsers.add_parser("list", help="Get a list of projects")
 
@@ -68,7 +65,7 @@ def main():
     
     # Get username from environment variables
     user_name = os.getenv('USER') or os.getenv('USERNAME') or 'unknown'
-    base_path = os.getenv('MINIVC_BASE_PATH', os.path.join('C:', 'Users', user_name, 'mvc-files'))
+    base_path = os.getenv('MVC_BASE_PATH', os.path.join('C:', 'Users', user_name, 'mvc-files'))
     user_path = os.getcwd()
     mvc = MiniVC(base_path, user_path, user_name)
     
