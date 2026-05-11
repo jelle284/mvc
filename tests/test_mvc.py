@@ -117,6 +117,7 @@ class TestMVC(unittest.TestCase):
             self.assertRaises(MVCError, mvc.claim, user_files[:1])
             mvc.submit(user_files)
             mvc.claim(user_files[:1])
+            mvc.submit(user_files[:1])
 
         def subtest_2():
             user_path = create_subws("subws2")
